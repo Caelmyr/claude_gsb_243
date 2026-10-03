@@ -90,6 +90,20 @@ def main():
     print(f"  执行结果: error={result['error']}  输出节点={result['output_node_id']}  节点状态={[r['ok'] for r in result['node_results']]}")
     print(f"  规范化键: {pipeline_engine.canonical_key(nodes)[:40]}...")
 
+    print("\n== 裁剪边界拖反（回归：不得静默返回原图）==")
+    bad_crop = [
+        {"id": "c1", "type": "crop", "params": {"left": 0.8, "right": 0.2}, "inputs": []},
+        {"id": "c2", "type": "brightness", "params": {"amount": 10}, "inputs": ["c1"]},
+    ]
+    res_bad = pipeline_engine.execute(work, bad_crop)
+    r0 = res_bad["node_results"][0]
+    print(f"  裁剪节点: ok={r0['ok']}  error={r0['error']}")
+    assert r0["ok"] is False and "裁剪区域为空" in r0["error"], "边界拖反的裁剪必须报错并记录到 node_results"
+    bad_crop_tb = [{"id": "c1", "type": "crop", "params": {"top": 0.9, "bottom": 0.1}, "inputs": []}]
+    r_tb = pipeline_engine.execute(work, bad_crop_tb)["node_results"][0]
+    assert r_tb["ok"] is False and "裁剪区域为空" in r_tb["error"], "上下拖反同样必须报错"
+    print("  左右/上下拖反均已正确报错 ✔")
+
     print("\n== process_image（含缓存/历史）==")
     res1 = process_image(image_store, cache, history, ids["shapes.png"], nodes, pipeline_name="冒烟")
     res2 = process_image(image_store, cache, history, ids["shapes.png"], nodes, pipeline_name="冒烟")

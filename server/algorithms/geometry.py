@@ -35,7 +35,11 @@ def rotate(image, params):
 
 
 def crop(image, params):
-    """裁剪。left/top/right/bottom ∈ [0,1] 相对坐标。"""
+    """裁剪。left/top/right/bottom ∈ [0,1] 相对坐标。
+
+    边界拖反（左≥右 或 上≥下）或换算后区域为零时抛 ValueError，
+    由流水线引擎记录到该节点的 node_results，绝不能静默返回原图。
+    """
     w, h = image.size
     left = float(params.get("left", 0.0))
     top = float(params.get("top", 0.0))
@@ -46,7 +50,9 @@ def crop(image, params):
     x1 = int(round(w * max(0.0, min(1.0, right))))
     y1 = int(round(h * max(0.0, min(1.0, bottom))))
     if x1 <= x0 or y1 <= y0:
-        return image
+        raise ValueError(
+            "裁剪区域为空：需满足 左<右 且 上<下"
+            f"（当前 左={left:g} 右={right:g} 上={top:g} 下={bottom:g}）")
     return image.crop((x0, y0, x1, y1))
 
 

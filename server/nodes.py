@@ -165,9 +165,11 @@ NODES["rotate"] = _node(
 
 NODES["crop"] = _node(
     "crop", "裁剪", "几何",
-    [_range("left", "左", 0, 1, 0.01, 0), _range("top", "上", 0, 1, 0.01, 0),
-     _range("right", "右", 0, 1, 0.01, 1), _range("bottom", "下", 0, 1, 0.01, 1)],
-    _geometry.crop, desc="按比例裁剪")
+    [_range("left", "左", 0, 1, 0.01, 0, "需小于「右」"),
+     _range("top", "上", 0, 1, 0.01, 0, "需小于「下」"),
+     _range("right", "右", 0, 1, 0.01, 1, "需大于「左」"),
+     _range("bottom", "下", 0, 1, 0.01, 1, "需大于「上」")],
+    _geometry.crop, desc="按比例裁剪（边界拖反会报错，不会静默跳过）")
 
 NODES["flip"] = _node(
     "flip", "翻转", "几何",

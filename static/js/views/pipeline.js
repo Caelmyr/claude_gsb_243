@@ -224,14 +224,22 @@ window.Views.pipeline = (function () {
     preview.innerHTML = `<div class="loading">运行中…</div>`;
     try {
       const r = await Api.post("/api/run", { image_id: imageId, nodes: nodes.map(strip), pipeline_name: "临时流水线" });
+      if (r.error) {
+        preview.innerHTML = `<div class="empty">运行失败：${C.esc(r.error)}</div>`;
+        return;
+      }
+      // 失败节点：toast + 节点标红 + 预览区常驻警告（不能只弹瞬态提示，否则结果图看着"成功"会误导）
+      const failed = (r.node_results || []).filter((n) => !n.ok);
+      const warnHTML = failed.length
+        ? `<div class="caption"><span class="badge amber">部分节点未生效</span><br>` +
+          failed.map((f) => `⚠ ${C.esc(nodeLabel(f.type))} #${C.esc(f.node_id)}：${C.esc(f.error || "未知错误")}`).join("<br>") + `</div>`
+        : "";
       preview.innerHTML = `
         <img src="${r.file_url}?t=${Date.now()}">
-        <div class="caption">${r.cache_hit ? "缓存命中" : "已计算"} · ${(r.meta && r.meta.count != null) ? "对象 " + r.meta.count : ""}</div>`;
-      // 标记失败节点
-      const failed = (r.node_results || []).filter((n) => !n.ok);
+        <div class="caption">${r.cache_hit ? "缓存命中" : "已计算"} · ${(r.meta && r.meta.count != null) ? "对象 " + r.meta.count : ""}</div>${warnHTML}`;
+      Object.values(nodeEls).forEach((el) => el.classList.remove("error"));
       if (failed.length) {
-        C.toast("有节点执行失败：" + failed.map((f) => f.node_id).join(", "), "error");
-        Object.values(nodeEls).forEach((el) => el.classList.remove("error"));
+        C.toast("有节点未生效：" + failed.map((f) => `${nodeLabel(f.type)}（${f.error}）`).join("；"), "error");
         failed.forEach((f) => { if (nodeEls[f.node_id]) nodeEls[f.node_id].classList.add("error"); });
       }
     } catch (e) {
