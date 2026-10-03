@@ -11,6 +11,17 @@ window.Views.pipeline = (function () {
   let nodeEls = {};        // id -> DOM element
   let connecting = null;   // {from, x, y}
 
+  // 跨参数即时校验：滑块各自合法但组合不合法时，在运行前就给出提示。
+  // 返回错误文案数组，空数组表示合法。
+  const PARAM_CHECKS = {
+    crop: (v) => {
+      const errs = [];
+      if (Number(v.left) >= Number(v.right)) errs.push("左边界必须小于右边界，否则裁剪不会生效");
+      if (Number(v.top) >= Number(v.bottom)) errs.push("上边界必须小于下边界，否则裁剪不会生效");
+      return errs;
+    },
+  };
+
   // 参考元素
   let canvas, svg, paletteEl, inspectorEl, imageSel, runBtn, previewBox;
 
@@ -162,6 +173,7 @@ window.Views.pipeline = (function () {
       paramHTML = `
         <div class="panel-title">${C.esc(nodeLabel(node.type))} <span class="dim">#${node.id}</span></div>
         <div class="param-grid">${form.html}</div>
+        <div id="insp-param-warn" class="param-warn" style="display:none"></div>
         <div class="toolbar" style="margin-top:10px">
           <button class="btn btn-sm btn-danger" id="insp-del">删除节点</button>
           <button class="btn btn-sm" id="insp-clear">清空全部</button>
@@ -169,8 +181,17 @@ window.Views.pipeline = (function () {
       // 延迟绑定表单
       setTimeout(() => {
         const box = inspectorEl.querySelector(".param-grid");
+        const warnEl = inspectorEl.querySelector("#insp-param-warn");
+        const check = PARAM_CHECKS[node.type];
+        const updateWarn = (vals) => {
+          if (!warnEl) return;
+          const errs = check ? check(vals) : [];
+          warnEl.innerHTML = errs.map((e) => `<div>⚠ ${C.esc(e)}</div>`).join("");
+          warnEl.style.display = errs.length ? "" : "none";
+        };
         if (box) {
-          form.bind(box, (vals) => { node.params = vals; });
+          form.bind(box, (vals) => { node.params = vals; updateWarn(vals); });
+          updateWarn(form.collect(box));
         }
         inspectorEl.querySelector("#insp-del").onclick = () => deleteNode(node.id);
         inspectorEl.querySelector("#insp-clear").onclick = () => { nodes = []; sel = null; renderNodes(); renderInspector(); };
@@ -227,12 +248,17 @@ window.Views.pipeline = (function () {
       preview.innerHTML = `
         <img src="${r.file_url}?t=${Date.now()}">
         <div class="caption">${r.cache_hit ? "缓存命中" : "已计算"} · ${(r.meta && r.meta.count != null) ? "对象 " + r.meta.count : ""}</div>`;
-      // 标记失败节点
+      // 标记失败节点（先清掉上一轮的状态，避免成功运行后红框残留）
       const failed = (r.node_results || []).filter((n) => !n.ok);
+      Object.values(nodeEls).forEach((el) => { el.classList.remove("error"); el.removeAttribute("title"); });
       if (failed.length) {
-        C.toast("有节点执行失败：" + failed.map((f) => f.node_id).join(", "), "error");
-        Object.values(nodeEls).forEach((el) => el.classList.remove("error"));
-        failed.forEach((f) => { if (nodeEls[f.node_id]) nodeEls[f.node_id].classList.add("error"); });
+        C.toast("有节点未生效：" + failed.map((f) => `${nodeLabel(f.type)}：${f.error}`).join("；"), "error");
+        failed.forEach((f) => {
+          if (nodeEls[f.node_id]) {
+            nodeEls[f.node_id].classList.add("error");
+            nodeEls[f.node_id].title = f.error || "执行失败";
+          }
+        });
       }
     } catch (e) {
       preview.innerHTML = `<div class="empty">运行失败：${C.esc(e.message)}</div>`;

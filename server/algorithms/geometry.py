@@ -35,18 +35,30 @@ def rotate(image, params):
 
 
 def crop(image, params):
-    """裁剪。left/top/right/bottom ∈ [0,1] 相对坐标。"""
+    """裁剪。left/top/right/bottom ∈ [0,1] 相对坐标。
+
+    边界无效（左≥右 / 上≥下，或区域不足 1 像素）时抛 ValueError，
+    由流水线引擎把该节点标记为失败并反馈给前端——不能静默返回原图，
+    否则下游节点会在未裁剪的图上继续跑，用户无从察觉这一步没生效。
+    """
     w, h = image.size
     left = float(params.get("left", 0.0))
     top = float(params.get("top", 0.0))
     right = float(params.get("right", 1.0))
     bottom = float(params.get("bottom", 1.0))
+    problems = []
+    if left >= right:
+        problems.append(f"左边界（{left:g}）必须小于右边界（{right:g}）")
+    if top >= bottom:
+        problems.append(f"上边界（{top:g}）必须小于下边界（{bottom:g}）")
+    if problems:
+        raise ValueError("；".join(problems))
     x0 = int(round(w * max(0.0, min(1.0, left))))
     y0 = int(round(h * max(0.0, min(1.0, top))))
     x1 = int(round(w * max(0.0, min(1.0, right))))
     y1 = int(round(h * max(0.0, min(1.0, bottom))))
     if x1 <= x0 or y1 <= y0:
-        return image
+        raise ValueError("裁剪区域不足 1 像素，请扩大边界间距")
     return image.crop((x0, y0, x1, y1))
 
 

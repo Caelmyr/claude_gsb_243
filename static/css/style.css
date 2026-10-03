@@ -202,6 +202,7 @@ input[type="color"] { width: 100%; height: 34px; border: 1px solid var(--border-
 .port.hot { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .canvas-hint { position: absolute; left: 12px; top: 12px; color: var(--text-faint); font-size: 12px; pointer-events: none; }
 .pipeline-inspector { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; overflow-y: auto; }
+.param-warn { margin-top: 8px; padding: 8px 10px; border: 1px solid rgba(245,181,68,.4); border-radius: var(--radius-sm); color: var(--amber); font-size: 12px; line-height: 1.6; }
 
 /* ---------- 进度条 ---------- */
 .progress { height: 8px; background: var(--bg-soft); border-radius: 6px; overflow: hidden; }
